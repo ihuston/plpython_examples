@@ -26,6 +26,7 @@ SELECT plp.pymax(10, 5);
 
 
 -- Create a composite return type
+DROP TYPE IF EXISTS plp.named_value;
 CREATE TYPE plp.named_value AS (
   name  text,
   value  integer
@@ -68,3 +69,53 @@ $$ LANGUAGE plpythonu;
 SELECT plp.make_pair_sets('Gerald');
 
 
+--Set up some data to show parallelisation
+DROP TABLE IF EXISTS plp.test_data;
+
+CREATE TABLE plp.test_data AS
+SELECT 'a'::text AS name, generate_series(0,1000000)::float AS x, generate_series(0,1000000)/100.0 AS y
+DISTRIBUTED BY (name);
+
+INSERT INTO plp.test_data 
+SELECT 'b'::text AS name, generate_series(0,1000000)::float AS x, sin(generate_series(0,1000000)/100.0) AS y;
+
+INSERT INTO plp.test_data 
+SELECT 'c'::text AS name, generate_series(0,1000000)::float AS x, 100.0 + sin(generate_series(0,1000000)/100.0) AS value;
+
+-- Create a function to find the mean of some numbers
+DROP FUNCTION IF EXISTS plp.np_mean(double precision[]);
+CREATE OR REPLACE FUNCTION plp.np_mean(value_array double precision[])
+RETURNS float
+AS $$
+import numpy as np
+return np.mean(value_array)
+$$ LANGUAGE plpythonu;
+
+-- Need to pass the numbers as an array using array_agg
+SELECT plp.np_mean(array_agg(y)) FROM plp.test_data;
+
+-- Now try to do this for each type of data in parallel by grouping
+SELECT name, plp.np_mean(array_agg(y)) FROM plp.test_data GROUP BY name;
+
+DROP TYPE IF EXISTS plp.linregr_results; 
+CREATE TYPE plp.linregr_results AS (
+
+)
+
+-- Now try do something even more interesting
+DROP FUNCTION IF EXISTS plp.linregr(double precision[]);
+CREATE OR REPLACE FUNCTION plp.linregr(x double precision[], y double precision[])
+RETURNS float[]
+AS $$
+from scipy import stats
+return stats.linregress(x, y)
+$$ LANGUAGE plpythonu;
+
+-- Do linear regression for all data
+SELECT plp.linregr(array_agg(x), array_agg(y)) 
+FROM plp.test_data;
+
+-- Now do it separately for each 'name'
+SELECT name, plp.linregr(array_agg(x), array_agg(y)) 
+FROM plp.test_data 
+GROUP BY name;
