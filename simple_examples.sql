@@ -97,11 +97,6 @@ SELECT plp.np_mean(array_agg(y)) FROM plp.test_data;
 -- Now try to do this for each type of data in parallel by grouping
 SELECT name, plp.np_mean(array_agg(y)) FROM plp.test_data GROUP BY name;
 
-DROP TYPE IF EXISTS plp.linregr_results; 
-CREATE TYPE plp.linregr_results AS (
-
-)
-
 -- Now try do something even more interesting
 DROP FUNCTION IF EXISTS plp.linregr(double precision[]);
 CREATE OR REPLACE FUNCTION plp.linregr(x double precision[], y double precision[])
