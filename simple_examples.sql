@@ -80,7 +80,7 @@ INSERT INTO plp.test_data
 SELECT 'b'::text AS name, generate_series(0,1000000)::float AS x, sin(generate_series(0,1000000)/100.0) AS y;
 
 INSERT INTO plp.test_data 
-SELECT 'c'::text AS name, generate_series(0,1000000)::float AS x, 100.0 + sin(generate_series(0,1000000)/100.0) AS value;
+SELECT 'c'::text AS name, generate_series(0,1000000)::float AS x, 100.0 + sin(generate_series(0,1000000)/100.0) AS y;
 
 -- Create a function to find the mean of some numbers
 DROP FUNCTION IF EXISTS plp.np_mean(double precision[]);
@@ -95,7 +95,7 @@ $$ LANGUAGE plpythonu;
 SELECT plp.np_mean(array_agg(y)) FROM plp.test_data;
 
 -- Now try to do this for each type of data in parallel by grouping
-SELECT name, plp.np_mean(array_agg(y)) FROM plp.test_data GROUP BY name;
+SELECT name, plp.np_mean(array_agg(y)) FROM plp.test_data GROUP BY name ORDER BY name;
 
 -- Now try do something even more interesting
 DROP FUNCTION IF EXISTS plp.linregr(double precision[]);
@@ -113,4 +113,4 @@ FROM plp.test_data;
 -- Now do it separately for each 'name'
 SELECT name, plp.linregr(array_agg(x), array_agg(y)) 
 FROM plp.test_data 
-GROUP BY name;
+GROUP BY name ORDER BY name;
